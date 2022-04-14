@@ -1,94 +1,127 @@
+# Minimal repro for issue with nx running local plugins
 
+Steps to reproduce:
 
-# MyWorkspace
+- run `yarn`
+- run `yarn nx g @my-workspace/my-plugin:app testapp`
 
-This project was generated using [Nx](https://nx.dev).
+# Issue
 
-<p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="450"></p>
+<!-- Please do your best to fill out all of the sections below! -->
 
-🔎 **Smart, Fast and Extensible Build System**
+## Current Behavior
 
-## Adding capabilities to your workspace
+<!-- What is the behavior that currently you experience? -->
 
-Nx supports many plugins which add capabilities for developing different types of applications and different tools.
+Using a local plugin generator fails with error "Cannot find module", as shown below.
 
-These capabilities include generating applications, libraries, etc as well as the devtools to test, and build projects as well.
+## Expected Behavior
 
-Below are our core plugins:
+<!-- What is the behavior that you expect to happen? -->
+<!-- Is this a regression? .i.e Did this used to be the behavior at one point?  -->
 
-- [React](https://reactjs.org)
-  - `npm install --save-dev @nrwl/react`
-- Web (no framework frontends)
-  - `npm install --save-dev @nrwl/web`
-- [Angular](https://angular.io)
-  - `npm install --save-dev @nrwl/angular`
-- [Nest](https://nestjs.com)
-  - `npm install --save-dev @nrwl/nest`
-- [Express](https://expressjs.com)
-  - `npm install --save-dev @nrwl/express`
-- [Node](https://nodejs.org)
-  - `npm install --save-dev @nrwl/node`
+As written in the [docs](https://nx.dev/nx-plugin/overview#using-your-nx-plugin), a plugin should be able to be used locally.
 
-There are also many [community plugins](https://nx.dev/community) you could add.
+## Steps to Reproduce
 
-## Generate an application
+<!-- Help us help you by making it easy for us to reproduce your issue! -->
 
-Run `nx g @nrwl/react:app my-app` to generate an application.
+<!-- Can you reproduce this on https://github.com/nrwl/nx-examples? -->
+<!-- If so, open a PR with your changes and link it below. -->
+<!-- If not, please provide a minimal Github repo -->
+<!-- At the very least, provide as much detail as possible to help us reproduce the issue -->
 
-> You can use any of the plugins above to generate applications as well.
+<!-- Remove this line -->
 
-When using Nx, you can create multiple applications and libraries in the same workspace.
+Run the following commands to create a new nx workspace with a local plugin package. `yarn` has been used, but the same result is obtained with `npm`.
 
-## Generate a library
+```sh
+npx create-nx-workspace@latest --preset=core my-workspace
+cd my-workspace
+rm -r node_modules
+rm package-lock.json
+echo '{"version": 2, "projects": {}}' >> workspace.json
+yarn add -D @nrwl/nx-plugin -W
+yarn nx g @nrwl/nx-plugin:plugin my-plugin --importPath @my-workspace/my-plugin
+yarn nx g @nrwl/nx-plugin:generator app --project my-plugin
+yarn nx g @my-workspace/my-plugin:app testapp --verbose
+```
 
-Run `nx g @nrwl/react:lib my-lib` to generate a library.
+The last command fails with the error specified in [Failure Logs](#failure-logs).
 
-> You can also use any of the plugins above to generate libraries as well.
+As a workaround, the workspace files can be removed from the `node_modules` folder. With the additional following commands, the generator works as expected:
 
-Libraries are shareable across libraries and applications. They can be imported from `@my-workspace/mylib`.
+```sh
+rm -r node_modules/@my-workspace/my-plugin
+yarn nx g @my-workspace/my-plugin:app testapp
+```
 
-## Development server
+### Failure Logs
 
-Run `nx serve my-app` for a dev server. Navigate to http://localhost:4200/. The app will automatically reload if you change any of the source files.
+<!-- Please include any relevant log snippets or files here. -->
 
-## Code scaffolding
+```
+...  my-workspace % yarn nx g @my-workspace/my-plugin:app testapp --verbose
 
-Run `nx g @nrwl/react:component my-component --project=my-app` to generate a new component.
+yarn run v1.22.15
+$ /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/.bin/nx g @my-workspace/my-plugin:app testapp --verbose
+Cannot find module '/Users/davide/dev/temp/nx-issue/my-workspace/packages/my-plugin/src/generators/app/generator'
+Require stack:
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/config/workspaces.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/command-line/generate.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/command-line/nx-commands.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/bin/init-local.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/bin/nx.js
+Error: Cannot find module '/Users/davide/dev/temp/nx-issue/my-workspace/packages/my-plugin/src/generators/app/generator'
+Require stack:
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/config/workspaces.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/command-line/generate.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/command-line/nx-commands.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/bin/init-local.js
+- /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/bin/nx.js
+    at Function.Module._resolveFilename (node:internal/modules/cjs/loader:933:15)
+    at Function.Module._load (node:internal/modules/cjs/loader:778:27)
+    at Module.require (node:internal/modules/cjs/loader:999:19)
+    at require (/Users/davide/dev/temp/nx-issue/my-workspace/node_modules/v8-compile-cache/v8-compile-cache.js:159:20)
+    at /Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/config/workspaces.js:122:28
+    at Object.<anonymous> (/Users/davide/dev/temp/nx-issue/my-workspace/node_modules/nx/src/command-line/generate.js:127:40)
+    at Generator.next (<anonymous>)
+    at fulfilled (/Users/davide/dev/temp/nx-issue/my-workspace/node_modules/tslib/tslib.js:114:62)
+error Command failed with exit code 1.
+```
 
-## Build
+### Environment
 
-Run `nx build my-app` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+<!-- It's important for us to know the context in which you experience this behavior! -->
+<!-- Please paste the result of `nx report` below! -->
 
-## Running unit tests
+```
+   Node : 17.8.0
+   OS   : darwin arm64
+   yarn : 1.22.15
 
-Run `nx test my-app` to execute the unit tests via [Jest](https://jestjs.io).
-
-Run `nx affected:test` to execute the unit tests affected by a change.
-
-## Running end-to-end tests
-
-Run `nx e2e my-app` to execute the end-to-end tests via [Cypress](https://www.cypress.io).
-
-Run `nx affected:e2e` to execute the end-to-end tests affected by a change.
-
-## Understand your workspace
-
-Run `nx graph` to see a diagram of the dependencies of your projects.
-
-## Further help
-
-Visit the [Nx Documentation](https://nx.dev) to learn more.
-
-
-
-## ☁ Nx Cloud
-
-### Distributed Computation Caching & Distributed Task Execution
-
-<p style="text-align: center;"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-cloud-card.png"></p>
-
-Nx Cloud pairs with Nx in order to enable you to build and test code more rapidly, by up to 10 times. Even teams that are new to Nx can connect to Nx Cloud and start saving time instantly.
-
-Teams using Nx gain the advantage of building full-stack applications with their preferred framework alongside Nx’s advanced code generation and project dependency graph, plus a unified experience for both frontend and backend developers.
-
-Visit [Nx Cloud](https://nx.app/) to learn more.
+   nx : 13.10.1
+   @nrwl/angular : Not Found
+   @nrwl/cypress : Not Found
+   @nrwl/detox : Not Found
+   @nrwl/devkit : 13.10.1
+   @nrwl/eslint-plugin-nx : 13.10.1
+   @nrwl/express : Not Found
+   @nrwl/jest : 13.10.1
+   @nrwl/js : 13.10.1
+   @nrwl/linter : 13.10.1
+   @nrwl/nest : Not Found
+   @nrwl/next : Not Found
+   @nrwl/node : Not Found
+   @nrwl/nx-cloud : Not Found
+   @nrwl/nx-plugin : 13.10.1
+   @nrwl/react : Not Found
+   @nrwl/react-native : Not Found
+   @nrwl/schematics : Not Found
+   @nrwl/storybook : Not Found
+   @nrwl/web : Not Found
+   @nrwl/workspace : 13.10.1
+   typescript : 4.6.3
+   rxjs : 6.6.7
+   ---------------------------------------
+```
